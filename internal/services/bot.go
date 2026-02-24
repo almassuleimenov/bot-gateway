@@ -7,18 +7,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
 )
 
-
-type BotService struct{
+type BotService struct {
 	Token string
 }
 
 func NewBotService(token string) *BotService {
 	return &BotService{
-		Token : token,
-	}	
+		Token: token,
+	}
 }
 
 func (s *BotService) ProcessUpdate(update models.Update) {
@@ -26,26 +24,25 @@ func (s *BotService) ProcessUpdate(update models.Update) {
 		return
 	}
 
-
-	if update.Message.Text == "/start" {
-		s.sendMessage(update.Message.Chat.ID, "Привет! Я ИИ-помощник архитектурного бюро. Спрашивай про наши проекты!")
-		return
-	}
-
 	chatID := update.Message.Chat.ID
 	userText := update.Message.Text
+
+	if userText == "/start" {
+		s.sendMessage(chatID, "Привет! Я ИИ-помощник архитектурного бюро. Спрашивай про наши проекты!")
+		return
+	}
 
 	var voiceURL string
 
 	if update.Message.Voice != nil {
 		fmt.Println("🎙️ Получено голосовое сообщение! Обрабатываю...")
-		url , err := s.getFileURL(update.Message.Voice.FileID)
+		url, err := s.getFileURL(update.Message.Voice.FileID)
 		if err != nil {
 			fmt.Printf("❌ Ошибка получения аудио: %v\n", err)
 			s.sendMessage(chatID, "Не удалось загрузить голосовое сообщение 😔")
-			return 
+			return
 		}
-		voiceURL = url 
+		voiceURL = url
 	}
 
 	aiReq := models.AIRequest{
@@ -56,9 +53,12 @@ func (s *BotService) ProcessUpdate(update models.Update) {
 
 	jsonData, _ := json.Marshal(aiReq)
 
-	resp, err := http.Post("http://127.0.0.1:8000/generate-answer", "application/json", bytes.NewBuffer(jsonData))
+	brainURL := "https://bot-brain-k9bb.onrender.com/generate-answer"
+	resp, err := http.Post(brainURL, "application/json", bytes.NewBuffer(jsonData))
+	
 	if err != nil {
 		fmt.Printf("❌ Питон оффлайн: %v\n", err)
+		s.sendMessage(chatID, "Мой мозг сейчас обновляется, подождите минутку... 🧠🔄")
 		return
 	}
 	defer resp.Body.Close()
@@ -77,7 +77,6 @@ func (s *BotService) ProcessUpdate(update models.Update) {
 	}
 
 	if aiResp.Reply == "" {
-		fmt.Println("⚠️ ИИ прислал пустой ответ")
 		s.sendMessage(chatID, "Мне нечего сказать по этому поводу... 🤔")
 		return
 	}
@@ -85,56 +84,50 @@ func (s *BotService) ProcessUpdate(update models.Update) {
 	s.sendMessage(chatID, aiResp.Reply)
 }
 
-func (s *BotService) sendMessage(chatID int,text string){
+func (s *BotService) sendMessage(chatID int, text string) {
+	// ✅ ИСПРАВЛЕНО: Здесь ВСЕГДА должен быть api.telegram.org!
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", s.Token)
 
 	payload := map[string]interface{}{
 		"chat_id": chatID,
 		"text":    text,
-
 	}
 
-	jsonData , _ := json.Marshal(payload)
+	jsonData, _ := json.Marshal(payload)
 	resp, err := http.Post(apiURL, "application/json", bytes.NewBuffer(jsonData))
 
-
-	if err != nil{
-		fmt.Printf("❌ Критическая ошибка HTTP: %v\n", err)
-		return 
+	if err != nil {
+		fmt.Printf("❌ Ошибка отправки в Telegram: %v\n", err)
+		return
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		fmt.Printf("❌ Telegram API Error: %s\n", string(body))
 	} else {
-		fmt.Printf("✅ Сообщение успешно улетело в чат %d\n", chatID)
+		fmt.Printf("✅ Ответ улетел клиенту в чат %d\n", chatID)
 	}
-
 }
 
-func (s *BotService) getFileURL(fileID string ) (string , error) {
+func (s *BotService) getFileURL(fileID string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", s.Token, fileID)
-	resp , err := http.Get(apiURL)
-
+	resp, err := http.Get(apiURL)
 	if err != nil {
-		return "" , err
+		return "", err
 	}
-
 	defer resp.Body.Close()
 
 	var result struct {
-		Ok bool `json:"ok"`
+		Ok     bool `json:"ok"`
 		Result struct {
 			FilePath string `json:"file_path"`
-
-		}`json:"result"`
+		} `json:"result"`
 	}
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil || !result.Ok{
-		return "", fmt.Errorf("ошибка API Telegram или декодирования")
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || !result.Ok {
+		return "", fmt.Errorf("ошибка API Telegram")
 	}
+	
 	downloadURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", s.Token, result.Result.FilePath)
-	return downloadURL , nil
+	return downloadURL, nil
 }
