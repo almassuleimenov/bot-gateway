@@ -16,8 +16,6 @@ WORKDIR /root/
 
 COPY --from=builder /app/gateway .
 
-COPY --from=builder /app/.env ./.env
-
 EXPOSE 8080
 
 CMD ["./gateway"]
