@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
 )
 
 
@@ -21,9 +22,10 @@ func NewBotService(token string) *BotService {
 }
 
 func (s *BotService) ProcessUpdate(update models.Update) {
-	if update.Message == nil || update.Message.Text == "" {
+	if update.Message == nil {
 		return
 	}
+
 
 	if update.Message.Text == "/start" {
 		s.sendMessage(update.Message.Chat.ID, "Привет! Я ИИ-помощник архитектурного бюро. Спрашивай про наши проекты!")
@@ -33,10 +35,25 @@ func (s *BotService) ProcessUpdate(update models.Update) {
 	chatID := update.Message.Chat.ID
 	userText := update.Message.Text
 
+	var voiceURL string
+
+	if update.Message.Voice != nil {
+		fmt.Println("🎙️ Получено голосовое сообщение! Обрабатываю...")
+		url , err := s.getFileURL(update.Message.Voice.FileID)
+		if err != nil {
+			fmt.Printf("❌ Ошибка получения аудио: %v\n", err)
+			s.sendMessage(chatID, "Не удалось загрузить голосовое сообщение 😔")
+			return 
+		}
+		voiceURL = url 
+	}
+
 	aiReq := models.AIRequest{
 		ChatID:   int64(chatID),
 		UserText: userText,
+		VoiceURL: voiceURL,
 	}
+
 	jsonData, _ := json.Marshal(aiReq)
 
 	resp, err := http.Post("http://127.0.0.1:8000/generate-answer", "application/json", bytes.NewBuffer(jsonData))
@@ -95,4 +112,29 @@ func (s *BotService) sendMessage(chatID int,text string){
 		fmt.Printf("✅ Сообщение успешно улетело в чат %d\n", chatID)
 	}
 
+}
+
+func (s *BotService) getFileURL(fileID string ) (string , error) {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/getFile?file_id=%s", s.Token, fileID)
+	resp , err := http.Get(apiURL)
+
+	if err != nil {
+		return "" , err
+	}
+
+	defer resp.Body.Close()
+
+	var result struct {
+		Ok bool `json:"ok"`
+		Result struct {
+			FilePath string `json:"file_path"`
+
+		}`json:"result"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil || !result.Ok{
+		return "", fmt.Errorf("ошибка API Telegram или декодирования")
+	}
+	downloadURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", s.Token, result.Result.FilePath)
+	return downloadURL , nil
 }
