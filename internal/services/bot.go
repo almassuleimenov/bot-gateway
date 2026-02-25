@@ -34,10 +34,11 @@ func (s *BotService) ProcessUpdate(webhook models.GreenApiWebhook) {
 	var userText string
 	var voiceURL string
 
-	if msgType == "textMessage" {
+	switch msgType {
+	case "textMessage":
 		userText = webhook.MessageData.TextMessageData.TextMessage
 		fmt.Println("📩 Получен ТЕКСТ из WhatsApp:", userText)
-	} else if msgType == "audioMessage" {
+	case "audioMessage":
 		voiceURL = webhook.MessageData.FileMessageData.DownloadUrl
 		fmt.Println("🎙️ Получено ГОЛОСОВОЕ сообщение, ссылка:", voiceURL)
 	}
