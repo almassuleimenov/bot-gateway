@@ -18,7 +18,12 @@ func HandleWebhook(botService *services.BotService) http.HandlerFunc {
 		}
 		defer r.Body.Close()
 
-		if webhook.TypeWebhook != "incomingMessageReceived" || webhook.MessageData.TypeMessage != "textMessage" {
+		if webhook.TypeWebhook != "incomingMessageReceived" {
+			return
+		}
+
+		msgType := webhook.MessageData.TypeMessage
+		if msgType != "textMessage" && msgType != "audioMessage" {
 			return
 		}
 

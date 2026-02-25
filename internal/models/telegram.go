@@ -10,6 +10,9 @@ type GreenApiWebhook struct {
 		TextMessageData struct {
 			TextMessage string `json:"textMessage"`
 		} `json:"textMessageData"`
+		FileMessageData struct {
+			DownloadUrl string `json:"downloadUrl"`
+		} `json:"fileMessageData"`
 	} `json:"messageData"`
 }
 

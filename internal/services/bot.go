@@ -25,18 +25,31 @@ func NewBotService(apiUrl, idInst, apiToken string) *BotService {
 
 func (s *BotService) ProcessUpdate(webhook models.GreenApiWebhook) {
 	chatID := webhook.SenderData.ChatId
-	userText := webhook.MessageData.TextMessageData.TextMessage
+	msgType := webhook.MessageData.TypeMessage
 
-	if chatID == "" || userText == "" {
+	if chatID == "" {
 		return
 	}
 
-	fmt.Println("📩 Получено сообщение из WhatsApp:", userText)
+	var userText string
+	var voiceURL string
+
+	if msgType == "textMessage" {
+		userText = webhook.MessageData.TextMessageData.TextMessage
+		fmt.Println("📩 Получен ТЕКСТ из WhatsApp:", userText)
+	} else if msgType == "audioMessage" {
+		voiceURL = webhook.MessageData.FileMessageData.DownloadUrl
+		fmt.Println("🎙️ Получено ГОЛОСОВОЕ сообщение, ссылка:", voiceURL)
+	}
+
+	if userText == "" && voiceURL == "" {
+		return
+	}
 
 	aiReq := models.AIRequest{
 		ChatID:   chatID,
 		UserText: userText,
-		VoiceURL: "", 
+		VoiceURL: voiceURL,
 	}
 
 	jsonData, _ := json.Marshal(aiReq)
