@@ -1,35 +1,29 @@
 package models
 
-type Update struct {
-	UpdateID int  `json:"update_id"`
-	Message *Message `json:"message"`
+type GreenApiWebhook struct {
+	TypeWebhook string `json:"typeWebhook"`
+	SenderData  struct {
+		ChatId string `json:"chatId"`
+	} `json:"senderData"`
+	MessageData struct {
+		TypeMessage     string `json:"typeMessage"`
+		TextMessageData struct {
+			TextMessage string `json:"textMessage"`
+		} `json:"textMessageData"`
+	} `json:"messageData"`
 }
 
-
-type Message struct {
-	Text string `json:"text"`
-	Chat Chat `json:"chat"`
-	Voice *Voice `json:"voice,omitempty"`
-}
-
-type Chat struct{
-	ID int `json:"id"`
-}
-type SendMessagePayload struct{
-	ChatID int `json:"chat_id"`
-	Text string `json:"text"`
-}
-
-type AIRequest struct{
-	ChatID int64 `json:"chat_id"`
+type AIRequest struct {
+	ChatID   string `json:"chat_id"` 
 	UserText string `json:"user_text"`
 	VoiceURL string `json:"voice_url"`
 }
 
-type AIResponse struct{
-	Reply string `json:"reply"`
+type AIResponse struct {
+	Reply string `json:"reply"` 
 }
 
-type Voice struct {
-	FileID string `json:"file_id"`
+type GreenApiSendRequest struct {
+	ChatId  string `json:"chatId"`
+	Message string `json:"message"`
 }

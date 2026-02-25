@@ -3,29 +3,25 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"bot-gateway/internal/services"
 	"bot-gateway/internal/models"
+	"bot-gateway/internal/services"
 )
 
-func HandleWebhook(botservice *services.BotService) http.HandlerFunc{
-	return func(w http.ResponseWriter , r *http.Request){
+func HandleWebhook(botService *services.BotService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 
-		var update models.Update
+		var webhook models.GreenApiWebhook
+		err := json.NewDecoder(r.Body).Decode(&webhook)
+		if err != nil {
+			return
+		}
+		defer r.Body.Close()
 
-		
-
-		err := json.NewDecoder(r.Body).Decode(&update)
-
-		if err != nil{
-			http.Error(w,"Invalid JSON",http.StatusBadRequest)
+		if webhook.TypeWebhook != "incomingMessageReceived" || webhook.MessageData.TypeMessage != "textMessage" {
 			return
 		}
 
-		defer r.Body.Close()
-
-		go botservice.ProcessUpdate(update);
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		go botService.ProcessUpdate(webhook)
 	}
 }
