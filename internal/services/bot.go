@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type BotService struct {
@@ -29,6 +30,11 @@ func (s *BotService) ProcessUpdate(webhook models.GreenApiWebhook) {
 
 	if chatID == "" {
 		return
+	}
+
+	if strings.HasSuffix(chatID , "@g.us"){
+		fmt.Println("Пропущено сообщение из группы",chatID)
+		return 
 	}
 
 	var userText string
